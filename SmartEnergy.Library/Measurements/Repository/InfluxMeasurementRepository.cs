@@ -16,10 +16,10 @@ public class InfluxMeasurementRepository : IMeasurementRepository
         _client = client;
     }
 
-    public Task<List<Measurement>> GetEnergyConsumed(int meterId, int daysToRetrieve, string aggregationWindow)
+    public Task<List<Measurement>> GetEnergyConsumed(int meterId, int daysToRetrieve, string aggregationWindow, string startDate, string endDate)
     {
         // Forward this request to a common private method and add specific data for this request (sensor and unit values)
-        return QueryP1SmartMeter(meterId, daysToRetrieve, aggregationWindow, Sensor.energy_consumed, Unit.KilowattHour);
+        return QueryP1SmartMeter(meterId, daysToRetrieve, aggregationWindow, Sensor.energy_consumed, Unit.KilowattHour, startDate, endDate);
     }
 
     public Task<List<Measurement>> GetEnergyProduced(int meterId, int daysToRetrieve, string aggregationWindow)
@@ -100,21 +100,35 @@ public class InfluxMeasurementRepository : IMeasurementRepository
     /// <param name="sensor">Type of data to retrieve from the influx database</param>
     /// <param name="unit">The unit of representation that is linked to the <c>sensor</c> information</param>
     /// <returns></returns>
-    private async Task<List<Measurement>> QueryP1SmartMeter(int meterId, int daysToRetrieve, string aggregationWindow, Sensor sensor, Unit unit)
+    private async Task<List<Measurement>> QueryP1SmartMeter(int meterId, int daysToRetrieve, string aggregationWindow, Sensor sensor, Unit unit, string startDate = null, string endDate = null)
     {
         var measurements = new List<Measurement>();
         // A stopwatch is used so we can monitor the time it took to retrieve and process the data from the influx database
         var startTime = Stopwatch.StartNew();
+        string query;
 
         // This is an influx query. Influx processes this and returns the data based on the parameter you provide in the query
-        string query =
-            $"from(bucket: \"p1-smartmeters\")" +
-            $"  |> range(start: {getStartDate(daysToRetrieve)}, stop: now())" +
-            $"  |> filter(fn: (r) => r[\"_field\"] == \"{sensor}\")" +
-            $"  |> filter(fn: (r) => r[\"signature\"] == \"{getFullMeterIdInHex(meterId)}\")" +
-            $"  |> aggregateWindow(every: {aggregationWindow}, fn: min, createEmpty: false)" +
-            $"  |> yield(name: \"min\")";
 
+        if (startDate != "" && endDate != "")
+        {
+            query =
+                $"from(bucket: \"p1-smartmeters\")" +
+                $"  |> range(start: {startDate}, stop: {endDate})" +
+                $"  |> filter(fn: (r) => r[\"_field\"] == \"{sensor}\")" +
+                $"  |> filter(fn: (r) => r[\"signature\"] == \"{getFullMeterIdInHex(meterId)}\")" +
+                $"  |> aggregateWindow(every: {aggregationWindow}, fn: min, createEmpty: false)" +
+                $"  |> yield(name: \"min\")";
+        }
+        else
+        {
+            query =
+                $"from(bucket: \"p1-smartmeters\")" +
+                $"  |> range(start: {getStartDate(daysToRetrieve)}, stop: now())" +
+                $"  |> filter(fn: (r) => r[\"_field\"] == \"{sensor}\")" +
+                $"  |> filter(fn: (r) => r[\"signature\"] == \"{getFullMeterIdInHex(meterId)}\")" +
+                $"  |> aggregateWindow(every: {aggregationWindow}, fn: min, createEmpty: false)" +
+                $"  |> yield(name: \"min\")";
+        }
         // Enable or disable next line if you want to see or hide the query that is executed
         // Console.WriteLine(query);
 

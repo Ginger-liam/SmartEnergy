@@ -17,11 +17,11 @@ else
         <div>
             <label>
                 Start Datum
-                <input type="date" @bind="StartDate" @bind:after="ValidateDates" />
+                <input type="date" @bind="startDate" @bind:after="ValidateDates" />
             </label>
             <label>
                 Eind Datum
-                <input type="date" @bind="EndDate" @bind:after="ValidateDates" />
+                <input type="date" @bind="endDate" @bind:after="ValidateDates" />
             </label>
             @if (!string.IsNullOrEmpty(dateError))
             {
@@ -63,22 +63,26 @@ else
 @code {
     private List<Measurement>? measurements;
     private List<DailyEnergyConsumption> dailyEnergyConsumption = new();
-    private DateOnly? StartDate { get; set; }
-    private DateOnly? EndDate { get; set; }
+    private DateOnly? endDate { get; set; } = DateOnly.FromDateTime(DateTime.Now);
+    private DateOnly? startDate { get; set; } = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
     private string? dateError { get; set; }
+    private int meterId = 1078608;
+    private int numberOfDays = 1;
+    private string aggregationWindow = "5m";
 
-    private void ValidateDates()
+    private async Task ValidateDates()
     {
-        if (StartDate.HasValue && EndDate.HasValue)
+        if (startDate.HasValue && endDate.HasValue)
         {
-            if (EndDate.Value < StartDate.Value)
+            if (endDate.Value < startDate.Value)
             {
-                EndDate = StartDate.Value.AddDays(1);
+                endDate = startDate.Value.AddDays(1);
                 dateError = "Eind datum mag niet voor start datum liggen";
             }
             else
             {
                 dateError = null;
+                await getMeasurements();
                 CalculateDailyEnergyConsumption();
             }
         }
@@ -86,21 +90,35 @@ else
 
     private void CalculateDailyEnergyConsumption()
     {
-        @* measurements.ForEach(Console.WriteLine); *@
+    }
+
+    private async Task getMeasurements()
+    {
+        measurements = await this.measurementRepository.GetEnergyConsumed(
+        meterId,
+        numberOfDays,
+        aggregationWindow,
+        FormatDateOnly(startDate),
+        FormatDateOnly(endDate)
+        );
     }
 
     protected override async Task OnInitializedAsync()
     {
-        int meterId = 1078608;
-        int numberOfDays = 1;
-        string aggregationWindow = "5m"; // Correct spelling
-
-        measurements = await this.measurementRepository.GetEnergyConsumed(meterId, numberOfDays, aggregationWindow);
+        await getMeasurements();
 
         if (measurements != null)
         {
             CalculateDailyEnergyConsumption();
         }
+    }
+
+
+    private string FormatDateOnly(DateOnly? date)
+    {
+        return date.HasValue
+        ? date.Value.ToString("yyyy-MM-dd")
+        : "";
     }
 
     private class DailyEnergyConsumption
