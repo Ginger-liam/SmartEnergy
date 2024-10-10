@@ -17,11 +17,12 @@ else
         <div>
             <label>
                 Start Datum
-                <input type="date" @bind="startDate" @bind:after="ValidateDates" />
+                <input type="date" max=@(DateTime.Now.ToString("yyyy-MM-dd")) @bind="startDate"
+                    @bind:after="ValidateDates" />
             </label>
             <label>
                 Eind Datum
-                <input type="date" @bind="endDate" @bind:after="ValidateDates" />
+                <input type="date" max=@(DateTime.Now.ToString("yyyy-MM-dd")) @bind="endDate" @bind:after="ValidateDates" />
             </label>
             @if (!string.IsNullOrEmpty(dateError))
             {
@@ -32,26 +33,20 @@ else
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Timestamp (UTC)</th>
-                        <th>Location ID</th>
-                        <th>Sensor</th>
-                        <th>Value</th>
-                        <th>Unit</th>
-                        <th>Price (energy only)</th>
-                        <th>Temperature</th>
+                        <th>Datum</th>
+                        <th>Totaal energie</th>
+                        <th>Goedkope energie</th>
+                        <th>Dure energie</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var measurement in measurements)
+                    @foreach (var dailyEnergyConsumption in dailyEnergyConsumption)
                     {
                         <tr>
-                            <td>@measurement.Timestamp</td>
-                            <td>@measurement.LocationId</td>
-                            <td>@measurement.Sensor</td>
-                            <td>@measurement.Value</td>
-                            <td>@measurement.Unit</td>
-                            <td>@measurement.EnergyPrice</td>
-                            <td>@measurement.Temperature</td>
+                            <td>@dailyEnergyConsumption.Date</td>
+                            <td>@dailyEnergyConsumption.TotalEnergy</td>
+                            <td>@dailyEnergyConsumption.CheapEnergy</td>
+                            <td>@dailyEnergyConsumption.ExpensiveEnergy</td>
                         </tr>
                     }
                 </tbody>
@@ -74,10 +69,10 @@ else
     {
         if (startDate.HasValue && endDate.HasValue)
         {
-            if (endDate.Value < startDate.Value)
+            if (endDate.Value <= startDate.Value)
             {
                 endDate = startDate.Value.AddDays(1);
-                dateError = "Eind datum mag niet voor start datum liggen";
+                dateError = "Eind datum mag niet voor of op de start datum liggen";
             }
             else
             {
@@ -90,10 +85,52 @@ else
 
     private void CalculateDailyEnergyConsumption()
     {
+        if (measurements == null || !startDate.HasValue || !endDate.HasValue) return;
+
+        // Group measurements by date
+        var groupedMeasurements = measurements
+        .GroupBy(measurement => measurement.Timestamp.Date)
+        .ToList();
+        @*
+foreach (var group in groupedMeasurements)
+{
+Console.WriteLine($"Date: {group.Key}");
+
+foreach (var measurement in group)
+{
+Console.WriteLine($"Measurement: {measurement}"); // You can replace this with specific properties of 'measurement'
+}
+} *@
+
+
+        var filteredMeasurements = measurements
+        .GroupBy(measurement => measurement.Timestamp.Date).Select(group =>
+        {
+            var dailyMeasurements = group.ToList();
+            var avgPrice = dailyMeasurements.Average(m => m.EnergyPrice);
+            var cheapEnergy = dailyMeasurements.Where(m => m.EnergyPrice <= avgPrice).Sum(m => m.Value);
+            var expensiveEnergy = dailyMeasurements.Where(m => m.EnergyPrice > avgPrice).Sum(m => m.Value);
+            var totalEnergy = dailyMeasurements.Sum(m => m.Value);
+
+            return new DailyEnergyConsumption
+                {
+                    Date = group.Key,
+                    TotalEnergy = totalEnergy,
+                    CheapEnergy = cheapEnergy,
+                    ExpensiveEnergy = expensiveEnergy
+                };
+        }).ToList();
+
+
+        dailyEnergyConsumption = filteredMeasurements;
+
     }
 
     private async Task getMeasurements()
     {
+        Console.WriteLine(startDate);
+        Console.WriteLine(endDate);
+
         measurements = await this.measurementRepository.GetEnergyConsumed(
         meterId,
         numberOfDays,
@@ -123,9 +160,10 @@ else
 
     private class DailyEnergyConsumption
     {
-        public DateOnly Date { get; set; }
-        public double TotalEnergy { get; set; }
-        public double CheapEnergy { get; set; }
-        public double ExpensiveEnergy { get; set; }
+        public DateTime? Date { get; set; }
+        public double? TotalEnergy { get; set; }
+        public double? CheapEnergy { get; set; }
+        public double? ExpensiveEnergy
+        { get; set; }
     }
 }
