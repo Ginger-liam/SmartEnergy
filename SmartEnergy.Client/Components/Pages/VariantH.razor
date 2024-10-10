@@ -1,0 +1,113 @@
+﻿@page "/varianth"
+@attribute [StreamRendering]
+@inject IMeasurementRepository measurementRepository;
+@rendermode InteractiveServer
+
+<PageTitle>Variant H</PageTitle>
+
+<h1>Variant H</h1>
+
+@if (measurements == null)
+{
+    <p><em>Data wordt geladen...</em></p>
+}
+else
+{
+    <div>
+        <div>
+            <label>
+                Start Datum
+                <input type="date" @bind="StartDate" @bind:after="ValidateDates" />
+            </label>
+            <label>
+                Eind Datum
+                <input type="date" @bind="EndDate" @bind:after="ValidateDates" />
+            </label>
+            @if (!string.IsNullOrEmpty(dateError))
+            {
+                <p style="color:red">@dateError</p>
+            }
+        </div>
+        <div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Timestamp (UTC)</th>
+                        <th>Location ID</th>
+                        <th>Sensor</th>
+                        <th>Value</th>
+                        <th>Unit</th>
+                        <th>Price (energy only)</th>
+                        <th>Temperature</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var measurement in measurements)
+                    {
+                        <tr>
+                            <td>@measurement.Timestamp</td>
+                            <td>@measurement.LocationId</td>
+                            <td>@measurement.Sensor</td>
+                            <td>@measurement.Value</td>
+                            <td>@measurement.Unit</td>
+                            <td>@measurement.EnergyPrice</td>
+                            <td>@measurement.Temperature</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Measurement>? measurements;
+    private List<DailyEnergyConsumption> dailyEnergyConsumption = new();
+    private DateOnly? StartDate { get; set; }
+    private DateOnly? EndDate { get; set; }
+    private string? dateError { get; set; }
+
+    private void ValidateDates()
+    {
+        if (StartDate.HasValue && EndDate.HasValue)
+        {
+            if (EndDate.Value < StartDate.Value)
+            {
+                EndDate = StartDate.Value.AddDays(1);
+                dateError = "Eind datum mag niet voor start datum liggen";
+            }
+            else
+            {
+                dateError = null;
+                CalculateDailyEnergyConsumption();
+            }
+        }
+    }
+
+    private void CalculateDailyEnergyConsumption()
+    {
+        @* measurements.ForEach(Console.WriteLine); *@
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        int meterId = 1078608;
+        int numberOfDays = 1;
+        string aggregationWindow = "5m"; // Correct spelling
+
+        measurements = await this.measurementRepository.GetEnergyConsumed(meterId, numberOfDays, aggregationWindow);
+
+        if (measurements != null)
+        {
+            CalculateDailyEnergyConsumption();
+        }
+    }
+
+    private class DailyEnergyConsumption
+    {
+        public DateOnly Date { get; set; }
+        public double TotalEnergy { get; set; }
+        public double CheapEnergy { get; set; }
+        public double ExpensiveEnergy { get; set; }
+    }
+}
