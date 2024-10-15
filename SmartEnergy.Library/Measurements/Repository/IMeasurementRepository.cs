@@ -10,7 +10,7 @@ public interface IMeasurementRepository
     /// <param name="meterId">Decimal representation of the Hexadecimal ID of the P1 meter to retrieve data from</param>
     /// <param name="daysToRetrieve">Number of days to retrieve from the dataset. Range: 1 (only today) up to 30 (one month)</param>
     /// <param name="aggregationWindow">The time window for the aggregation of the measurements in seconds, minutes, hours or days.</param>
-    Task<List<Measurement>> GetEnergyConsumed(int meterId, int daysToRetrieve, string aggregationWindow, string startDate = "", string endDate = "");
+    Task<List<Measurement>> GetEnergyConsumed(int meterId, int daysToRetrieve, string aggregationWindow);
 
     /// <summary>
     /// Retrieves a list of measurement objects that represent the P1 Meter Values regarding the production of energy. The results

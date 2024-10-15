@@ -16,10 +16,10 @@ public class InfluxMeasurementRepository : IMeasurementRepository
         _client = client;
     }
 
-    public Task<List<Measurement>> GetEnergyConsumed(int meterId, int daysToRetrieve, string aggregationWindow, string startDate, string endDate)
+    public Task<List<Measurement>> GetEnergyConsumed(int meterId, int daysToRetrieve, string aggregationWindow)
     {
         // Forward this request to a common private method and add specific data for this request (sensor and unit values)
-        return QueryP1SmartMeter(meterId, daysToRetrieve, aggregationWindow, Sensor.energy_consumed, Unit.KilowattHour, startDate, endDate);
+        return QueryP1SmartMeter(meterId, daysToRetrieve, aggregationWindow, Sensor.energy_consumed, Unit.KilowattHour);
     }
 
     public Task<List<Measurement>> GetEnergyProduced(int meterId, int daysToRetrieve, string aggregationWindow)
@@ -100,35 +100,21 @@ public class InfluxMeasurementRepository : IMeasurementRepository
     /// <param name="sensor">Type of data to retrieve from the influx database</param>
     /// <param name="unit">The unit of representation that is linked to the <c>sensor</c> information</param>
     /// <returns></returns>
-    private async Task<List<Measurement>> QueryP1SmartMeter(int meterId, int daysToRetrieve, string aggregationWindow, Sensor sensor, Unit unit, string startDate = null, string endDate = null)
+    private async Task<List<Measurement>> QueryP1SmartMeter(int meterId, int daysToRetrieve, string aggregationWindow, Sensor sensor, Unit unit)
     {
         var measurements = new List<Measurement>();
         // A stopwatch is used so we can monitor the time it took to retrieve and process the data from the influx database
         var startTime = Stopwatch.StartNew();
-        string query;
 
         // This is an influx query. Influx processes this and returns the data based on the parameter you provide in the query
+        string query =
+            $"from(bucket: \"p1-smartmeters\")" +
+            $"  |> range(start: {getStartDate(daysToRetrieve)}, stop: now())" +
+            $"  |> filter(fn: (r) => r[\"_field\"] == \"{sensor}\")" +
+            $"  |> filter(fn: (r) => r[\"signature\"] == \"{getFullMeterIdInHex(meterId)}\")" +
+            $"  |> aggregateWindow(every: {aggregationWindow}, fn: min, createEmpty: false)" +
+            $"  |> yield(name: \"min\")";
 
-        if (startDate != "" && endDate != "")
-        {
-            query =
-                $"from(bucket: \"p1-smartmeters\")" +
-                $"  |> range(start: {startDate}, stop: {endDate})" +
-                $"  |> filter(fn: (r) => r[\"_field\"] == \"{sensor}\")" +
-                $"  |> filter(fn: (r) => r[\"signature\"] == \"{getFullMeterIdInHex(meterId)}\")" +
-                $"  |> aggregateWindow(every: {aggregationWindow}, fn: min, createEmpty: false)" +
-                $"  |> yield(name: \"min\")";
-        }
-        else
-        {
-            query =
-                $"from(bucket: \"p1-smartmeters\")" +
-                $"  |> range(start: {getStartDate(daysToRetrieve)}, stop: now())" +
-                $"  |> filter(fn: (r) => r[\"_field\"] == \"{sensor}\")" +
-                $"  |> filter(fn: (r) => r[\"signature\"] == \"{getFullMeterIdInHex(meterId)}\")" +
-                $"  |> aggregateWindow(every: {aggregationWindow}, fn: min, createEmpty: false)" +
-                $"  |> yield(name: \"min\")";
-        }
         // Enable or disable next line if you want to see or hide the query that is executed
         // Console.WriteLine(query);
 
@@ -157,24 +143,25 @@ public class InfluxMeasurementRepository : IMeasurementRepository
                 string locationId = (string)record.GetValueByKey("signature");
                 double value = (double)record.GetValueByKey("_value");
 
-                // Round the value up to the standarized rounding for measurements:
-                // * gas will be rounded to three decimals
-                // * energy will be rounded to full numbers (no decimals)
-                if (Sensor.gas_delivered.Equals(sensor))
-                {
-                    value = Math.Round(value, 3);
-                }
-                else
-                {
-                    value = Math.Round(value, 0);
-                }
-
                 // round up to the full hour so we can lookup the energy price for the hourly slot
                 DateTime dateTimeRounded = dateTime.AddMinutes(dateTime.Minute * -1).AddSeconds(dateTime.Second * -1);
 
                 // We use the earlier fetched data to set energyprice and temperature on the retrieved date/time of the measurement data
                 energyPrices.TryGetValue(dateTimeRounded.Ticks, out var energyPrice);
                 temperatures.TryGetValue(dateTime.Ticks, out var temperature);
+
+                // Round the value up to the standarized rounding for measurements:
+                // * gas will be rounded to three decimals and price will be set to a fixed value
+                // * energy will be rounded to full numbers (no decimals)
+                if (Sensor.gas_delivered.Equals(sensor))
+                {
+                    value = Math.Round(value, 3);
+                    energyPrice = 1.376d;
+                }
+                else
+                {
+                    value = Math.Round(value, 0);
+                }
 
                 // Create a new Measurement object and add it to the list.
                 var singleMeasurement = new Measurement(dateTime, locationId, sensor, value, unit, energyPrice, temperature);

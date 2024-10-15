@@ -15,28 +15,20 @@ else
 {
     <div>
         <div>
-            <label>
-                Start Datum
-                <input type="date" max=@(DateTime.Now.ToString("yyyy-MM-dd")) @bind="startDate"
-                    @bind:after="ValidateDates" />
-            </label>
-            <label>
-                Eind Datum
-                <input type="date" max=@(DateTime.Now.ToString("yyyy-MM-dd")) @bind="endDate" @bind:after="ValidateDates" />
-            </label>
-            @if (!string.IsNullOrEmpty(dateError))
-            {
-                <p style="color:red">@dateError</p>
-            }
+            <label for="daysRange">Select Days Range:</label>
+            <input type="range" id="daysRange" min="1" max="30" @bind="numberOfDays" @bind:after="OnDaysRangeChanged" />
+            <span>@numberOfDays day(s)</span>
         </div>
         <div>
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Datum</th>
-                        <th>Totaal energie</th>
-                        <th>Goedkope energie</th>
-                        <th>Dure energie</th>
+                        <th>Date</th>
+                        <th>Total Energy (kWh)</th>
+                        <th>Cheap Energy (kWh)</th>
+                        <th>Expensive Energy (kWh)</th>
+                        <th>Average Price (€/kWh)</th>
+                        <th>Cheap Energy (%)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -47,6 +39,8 @@ else
                             <td>@dailyEnergyConsumption.TotalEnergy</td>
                             <td>@dailyEnergyConsumption.CheapEnergy</td>
                             <td>@dailyEnergyConsumption.ExpensiveEnergy</td>
+                            <td>@dailyEnergyConsumption.AveragePrice</td>
+                            <td>@dailyEnergyConsumption.CheapEnergyPercentage</td>
                         </tr>
                     }
                 </tbody>
@@ -58,85 +52,56 @@ else
 @code {
     private List<Measurement>? measurements;
     private List<DailyEnergyConsumption> dailyEnergyConsumption = new();
-    private DateOnly? endDate { get; set; } = DateOnly.FromDateTime(DateTime.Now);
-    private DateOnly? startDate { get; set; } = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
-    private string? dateError { get; set; }
     private int meterId = 1078608;
     private int numberOfDays = 1;
-    private string aggregationWindow = "5m";
-
-    private async Task ValidateDates()
-    {
-        if (startDate.HasValue && endDate.HasValue)
-        {
-            if (endDate.Value <= startDate.Value)
-            {
-                endDate = startDate.Value.AddDays(1);
-                dateError = "Eind datum mag niet voor of op de start datum liggen";
-            }
-            else
-            {
-                dateError = null;
-                await getMeasurements();
-                CalculateDailyEnergyConsumption();
-            }
-        }
-    }
+    private string aggregationWindow = "1m";
 
     private void CalculateDailyEnergyConsumption()
     {
-        if (measurements == null || !startDate.HasValue || !endDate.HasValue) return;
+        if (measurements == null) return;
 
         // Group measurements by date
         var groupedMeasurements = measurements
         .GroupBy(measurement => measurement.Timestamp.Date)
         .ToList();
-        @*
-foreach (var group in groupedMeasurements)
-{
-Console.WriteLine($"Date: {group.Key}");
 
-foreach (var measurement in group)
-{
-Console.WriteLine($"Measurement: {measurement}"); // You can replace this with specific properties of 'measurement'
-}
-} *@
-
-
-        var filteredMeasurements = measurements
-        .GroupBy(measurement => measurement.Timestamp.Date).Select(group =>
+        dailyEnergyConsumption = groupedMeasurements.Select(group =>
         {
+
+            // Create list of measurements per day
             var dailyMeasurements = group.ToList();
+
+            // Calculate daily average price using Average method
             var avgPrice = dailyMeasurements.Average(m => m.EnergyPrice);
+
+            // The where method is used to filter the measurements based on the energy price
+            // The sum method is used to calculate the total energy consumed
             var cheapEnergy = dailyMeasurements.Where(m => m.EnergyPrice <= avgPrice).Sum(m => m.Value);
             var expensiveEnergy = dailyMeasurements.Where(m => m.EnergyPrice > avgPrice).Sum(m => m.Value);
             var totalEnergy = dailyMeasurements.Sum(m => m.Value);
+
+            // Calculate the percentage of cheap energy
+            var cheapEnergyPercentage = (totalEnergy > 0) ? Math.Round((decimal)(cheapEnergy / totalEnergy) * 100) : 0;
 
             return new DailyEnergyConsumption
                 {
                     Date = group.Key,
                     TotalEnergy = totalEnergy,
                     CheapEnergy = cheapEnergy,
-                    ExpensiveEnergy = expensiveEnergy
+                    ExpensiveEnergy = expensiveEnergy,
+                    CheapEnergyPercentage = (double)cheapEnergyPercentage,
+                    AveragePrice = (double?)Math.Round((decimal)avgPrice, 5)
                 };
+
         }).ToList();
-
-
-        dailyEnergyConsumption = filteredMeasurements;
-
     }
 
     private async Task getMeasurements()
     {
-        Console.WriteLine(startDate);
-        Console.WriteLine(endDate);
-
         measurements = await this.measurementRepository.GetEnergyConsumed(
         meterId,
         numberOfDays,
-        aggregationWindow,
-        FormatDateOnly(startDate),
-        FormatDateOnly(endDate)
+        aggregationWindow
         );
     }
 
@@ -150,6 +115,11 @@ Console.WriteLine($"Measurement: {measurement}"); // You can replace this with s
         }
     }
 
+    private async Task OnDaysRangeChanged()
+    {
+        await getMeasurements();
+        CalculateDailyEnergyConsumption();
+    }
 
     private string FormatDateOnly(DateOnly? date)
     {
@@ -163,7 +133,8 @@ Console.WriteLine($"Measurement: {measurement}"); // You can replace this with s
         public DateTime? Date { get; set; }
         public double? TotalEnergy { get; set; }
         public double? CheapEnergy { get; set; }
-        public double? ExpensiveEnergy
-        { get; set; }
+        public double? ExpensiveEnergy { get; set; }
+        public double? CheapEnergyPercentage { get; set; }
+        public double? AveragePrice { get; set; }
     }
 }
