@@ -7,18 +7,24 @@
 
 <h1>Variant H</h1>
 
-@if (measurements == null)
+<div>
+    <label for="daysRange">Select Days Range:</label>
+    <input type="range" id="daysRange" min="1" max="30" @bind="numberOfDays" @bind:after="OnDaysRangeChanged" />
+    <span>@numberOfDays day(s)</span>
+</div>
+
+@if (loading)
 {
     <p><em>Data wordt geladen...</em></p>
+}
+else if (measurements == null)
+{
+    <p><em>Geen gegevens beschikbaar.</em></p>
 }
 else
 {
     <div>
-        <div>
-            <label for="daysRange">Select Days Range:</label>
-            <input type="range" id="daysRange" min="1" max="30" @bind="numberOfDays" @bind:after="OnDaysRangeChanged" />
-            <span>@numberOfDays day(s)</span>
-        </div>
+
         <div>
             <table class="table">
                 <thead>
@@ -35,7 +41,7 @@ else
                     @foreach (var dailyEnergyConsumption in dailyEnergyConsumption)
                     {
                         <tr>
-                            <td>@dailyEnergyConsumption.Date</td>
+                            <td>@dailyEnergyConsumption.Date?.ToString("yyyy/MM/dd")</td>
                             <td>@dailyEnergyConsumption.TotalEnergy</td>
                             <td>@dailyEnergyConsumption.CheapEnergy</td>
                             <td>@dailyEnergyConsumption.ExpensiveEnergy</td>
@@ -55,8 +61,10 @@ else
     private int meterId = 1078608;
     private int numberOfDays = 1;
     private string aggregationWindow = "1m";
+    private bool loading = true;
 
-    private void CalculateDailyEnergyConsumption()
+
+    private async Task CalculateDailyEnergyConsumption()
     {
         if (measurements == null) return;
 
@@ -83,6 +91,7 @@ else
             // Calculate the percentage of cheap energy
             var cheapEnergyPercentage = (totalEnergy > 0) ? Math.Round((decimal)(cheapEnergy / totalEnergy) * 100) : 0;
 
+            // Create a new DailyEnergyConsumption object
             return new DailyEnergyConsumption
                 {
                     Date = group.Key,
@@ -92,7 +101,6 @@ else
                     CheapEnergyPercentage = (double)cheapEnergyPercentage,
                     AveragePrice = (double?)Math.Round((decimal)avgPrice, 5)
                 };
-
         }).ToList();
     }
 
@@ -107,18 +115,30 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        loading = true;
+        StateHasChanged();
         await getMeasurements();
 
         if (measurements != null)
         {
             CalculateDailyEnergyConsumption();
         }
+
+        loading = false;
+        StateHasChanged();
     }
 
     private async Task OnDaysRangeChanged()
     {
+        loading = true;
+        StateHasChanged();
+        Console.WriteLine(loading);
+
         await getMeasurements();
-        CalculateDailyEnergyConsumption();
+        await CalculateDailyEnergyConsumption();
+
+        loading = false;
+        StateHasChanged();
     }
 
     private string FormatDateOnly(DateOnly? date)
