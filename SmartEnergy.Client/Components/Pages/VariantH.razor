@@ -5,11 +5,11 @@
 
 <PageTitle>Variant H</PageTitle>
 
-<h1>Variant H - Liam Willis</h1>
+<h1 style="text-align: center; margin-bottom: 20px;">Variant H - Liam Willis</h1>
 
-<div style="display: flex; padding-bottom: 20px; padding-top: 20px;">
+<div style="display: flex; padding-bottom: 20px; padding-top: 20px; align-items: flex-start;">
     <div style="flex: 1; padding-right: 10px;">
-        <p>
+        <p style="line-height: 1.6; font-size: 16px; color: #333;">
             This page displays the daily energy consumption data for a specific meter over a selected range of days.
             You can adjust the range of days using the slider below to see how the energy consumption varies over time.
             The table below shows the total energy consumed, the amount of cheap and expensive energy, the average price
@@ -17,59 +17,79 @@
         </p>
     </div>
     <div style="flex: 1; padding-left: 10px;">
-        <BarChart @ref="barChart" Class="mb-4" />
+        @if (dailyEnergyConsumption != null && dailyEnergyConsumption.Any())
+        {
+            <BarChart @ref="barChart" Class="mb-4" />
+        }
     </div>
 </div>
 
 <div>
-    <div>
-        <label for="daysRange">Select Days Range:</label>
-        <input type="range" id="daysRange" min="1" max="30" @bind="numberOfDays" @bind:after="OnDaysRangeChanged" />
-        <span>@numberOfDays day(s)</span>
+    <div style="margin-top: 20px;">
+        <label for="daysRange" style="font-weight: bold; color: #333; margin-right: 10px;">Select Days Range:</label>
+        <input type="range" id="daysRange" min="1" max="30" @bind="numberOfDays" @bind:after="OnDaysRangeChanged"
+            style="width: 50%; margin-right: 10px;" />
+        <span style="font-weight: bold; color: #4a90e2;">@numberOfDays day(s)</span>
     </div>
 
     @if (loading)
     {
-        <p><em>Data wordt geladen...</em></p>
+        <p style="color: #888; font-size: 16px;"><em>Data wordt geladen...</em></p>
     }
     else if (measurements == null)
     {
-        <p><em>Geen gegevens beschikbaar.</em></p>
+        <p style="color: #888; font-size: 16px;"><em>Geen gegevens beschikbaar.</em></p>
     }
     else
     {
-        <div>
-
-            <div>
-                <table class="table">
-                    <thead>
+        <div style="margin-top: 20px;">
+            <table class="table" style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <thead>
+                    <tr>
+                        <th
+                            style="padding: 12px; border: 1px solid #ddd; text-align: center; background-color: #f4f4f4; font-weight: bold; color: #333;">
+                            Date</th>
+                        <th
+                            style="padding: 12px; border: 1px solid #ddd; text-align: center; background-color: #f4f4f4; font-weight: bold; color: #333;">
+                            Total Energy (kWh)</th>
+                        <th
+                            style="padding: 12px; border: 1px solid #ddd; text-align: center; background-color: #f4f4f4; font-weight: bold; color: #333;">
+                            Cheap Energy (kWh)</th>
+                        <th
+                            style="padding: 12px; border: 1px solid #ddd; text-align: center; background-color: #f4f4f4; font-weight: bold; color: #333;">
+                            Expensive Energy (kWh)</th>
+                        <th
+                            style="padding: 12px; border: 1px solid #ddd; text-align: center; background-color: #f4f4f4; font-weight: bold; color: #333;">
+                            Average Price (€/kWh)</th>
+                        <th
+                            style="padding: 12px; border: 1px solid #ddd; text-align: center; background-color: #f4f4f4; font-weight: bold; color: #333;">
+                            Cheap Energy (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var dailyEnergyConsumption in dailyEnergyConsumption)
+                    {
                         <tr>
-                            <th>Date</th>
-                            <th>Total Energy (kWh)</th>
-                            <th>Cheap Energy (kWh)</th>
-                            <th>Expensive Energy (kWh)</th>
-                            <th>Average Price (€/kWh)</th>
-                            <th>Cheap Energy (%)</th>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+                                @dailyEnergyConsumption.Date?.ToString("yyyy/MM/dd")</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+                                @dailyEnergyConsumption.TotalEnergy</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+                                @dailyEnergyConsumption.CheapEnergy</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+                                @dailyEnergyConsumption.ExpensiveEnergy</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+                                @dailyEnergyConsumption.AveragePrice</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+                                @dailyEnergyConsumption.CheapEnergyPercentage</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var dailyEnergyConsumption in dailyEnergyConsumption)
-                        {
-                            <tr>
-                                <td>@dailyEnergyConsumption.Date?.ToString("yyyy/MM/dd")</td>
-                                <td>@dailyEnergyConsumption.TotalEnergy</td>
-                                <td>@dailyEnergyConsumption.CheapEnergy</td>
-                                <td>@dailyEnergyConsumption.ExpensiveEnergy</td>
-                                <td>@dailyEnergyConsumption.AveragePrice</td>
-                                <td>@dailyEnergyConsumption.CheapEnergyPercentage</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                    }
+                </tbody>
+            </table>
         </div>
     }
 </div>
+
 
 
 @code {
@@ -77,61 +97,32 @@
     private List<DailyEnergyConsumption> dailyEnergyConsumption = new();
     private int meterId = 1078608;
     private int numberOfDays = 1;
-    private string aggregationWindow = "1m";
+    private string aggregationWindow = "6h";
     private bool loading = true;
     private BarChart barChart = default!;
-    private bool isFirstRender = true;
+    private BarChartOptions options = new();
 
-
-    private async Task RenderManhattanAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        @* Console.WriteLine(dailyEnergyConsumption); *@
-        Console.WriteLine(string.Join("\n"), dailyEnergyConsumption.Select(d => d.Date?.ToString("yyyy/MM/dd")).ToList());
-        var data = new ChartData
-            {
-                Labels = dailyEnergyConsumption.Select(d => d.Date?.ToString("yyyy/MM/dd")).ToList(),
-            @* Labels = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16",
-"17",
-"18", "19", "20" }, *@
-    Datasets = new List<IChartDataset>
-{
-new BarChartDataset
-{
-Label = "Total Energy",
-Data = dailyEnergyConsumption.Select(d => d.TotalEnergy).Cast<double?>().ToList(),
-BackgroundColor = new List<string> { "rgb(88, 80, 141)" },
-CategoryPercentage = 0.8,
-BarPercentage = 1,
-},
-}
-};
+        if (firstRender)
+        {
+            @* await RenderBarChartAsync(true); *@
+        }
 
-        var options = new BarChartOptions();
-
-        options.Interaction.Mode = InteractionMode.Index;
-
-        options.Plugins.Title!.Text = "MANHATTAN";
-        options.Plugins.Title.Display = true;
-        options.Plugins.Title.Font = new ChartFont { Size = 20 };
-
-        options.Responsive = true;
-
-        options.Scales.X!.Title = new ChartAxesTitle { Text = "Days", Display = true };
-        options.Scales.Y!.Title = new ChartAxesTitle { Text = "Energy", Display = true };
-
-        await barChart.InitializeAsync(data, options);
+        @* await base.OnAfterRenderAsync(firstRender); *@
     }
 
-    private async Task UpdateManhattanAsync()
+    private async Task RenderBarChartAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            await Task.Delay(1000);
+        }
 
         var data = new ChartData
             {
                 Labels = dailyEnergyConsumption.Select(d => d.Date?.ToString("yyyy/MM/dd")).ToList(),
-            @* Labels = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16",
-"17",
-"18", "19", "20" }, *@
-    Datasets = new List<IChartDataset>
+                Datasets = new List<IChartDataset>
 {
 new BarChartDataset
 {
@@ -153,38 +144,24 @@ new BarChartDataset
 {
 Label = "Expensive Energy",
 Data = dailyEnergyConsumption.Select(d => d.ExpensiveEnergy).Cast<double?>().ToList(),
-//red
 BackgroundColor = new List<string> { "rgb(255, 0, 0)" },
 CategoryPercentage = 0.8,
 BarPercentage = 1,
 },
 }
-};
+            };
 
-        var options = new BarChartOptions();
-
-        options.Interaction.Mode = InteractionMode.Index;
-
-        options.Plugins.Title!.Text = "Energy Consumption in kWh";
-        options.Plugins.Title.Display = true;
-        options.Plugins.Title.Font = new ChartFont { Size = 20 };
-
-        options.Responsive = true;
-
-        options.Scales.X!.Title = new ChartAxesTitle { Text = "Days", Display = true };
-        options.Scales.Y!.Title = new ChartAxesTitle { Text = "Energy", Display = true };
-        await barChart.UpdateAsync(data, options);
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
         if (firstRender)
         {
-            await RenderManhattanAsync();
-            isFirstRender = false;
-        }
-    }
+            await barChart.InitializeAsync(data, options);
 
+        }
+        else
+        {
+            await barChart.UpdateAsync(data, options);
+        }
+
+    }
 
     private async Task CalculateDailyEnergyConsumption()
     {
@@ -195,35 +172,60 @@ BarPercentage = 1,
         .GroupBy(measurement => measurement.Timestamp.Date)
         .ToList();
 
-        dailyEnergyConsumption = groupedMeasurements.Select(group =>
+        var firstDay = true;
+        var lastMeasurement = 0.0;
+
+        foreach (var day in groupedMeasurements)
         {
+            var dailyMeasurements = day.ToList();
 
-            // Create list of measurements per day
-            var dailyMeasurements = group.ToList();
+            foreach (var measurement in dailyMeasurements)
+            {
+                Console.WriteLine(measurement.Value);
+            }
 
-            // Calculate daily average price using Average method
-            var avgPrice = dailyMeasurements.Average(m => m.EnergyPrice);
+            @* Console.WriteLine(dailyMeasurements.Last().Value);
+Console.WriteLine(dailyMeasurements.First().Value); *@
+            if (firstDay)
+            {
+                lastMeasurement = dailyMeasurements.Last().Value ?? 0.0;
+                // go to next day
+                firstDay = false;
+                continue;
+            }
 
-            // The where method is used to filter the measurements based on the energy price
-            // The sum method is used to calculate the total energy consumed
-            var cheapEnergy = dailyMeasurements.Where(m => m.EnergyPrice <= avgPrice).Sum(m => m.Value);
-            var expensiveEnergy = dailyMeasurements.Where(m => m.EnergyPrice > avgPrice).Sum(m => m.Value);
-            var totalEnergy = dailyMeasurements.Sum(m => m.Value);
+            Console.WriteLine("last", lastMeasurement);
+        }
+        @* dailyEnergyConsumption = groupedMeasurements.Select(group =>
+{
+// Create list of measurements per day
+var dailyMeasurements = group.ToList();
 
-            // Calculate the percentage of cheap energy
-            var cheapEnergyPercentage = (totalEnergy > 0) ? Math.Round((decimal)(cheapEnergy / totalEnergy) * 100) : 0;
+// Calculate daily average price using Average method
+var avgPrice = dailyMeasurements.Average(m => m.EnergyPrice);
 
-            // Create a new DailyEnergyConsumption object
-            return new DailyEnergyConsumption
-                {
-                    Date = group.Key,
-                    TotalEnergy = totalEnergy,
-                    CheapEnergy = cheapEnergy,
-                    ExpensiveEnergy = expensiveEnergy,
-                    CheapEnergyPercentage = (double)cheapEnergyPercentage,
-                    AveragePrice = (double?)Math.Round((decimal)avgPrice, 5)
-                };
-        }).ToList();
+// The where method is used to filter the measurements based on the energy price
+// The sum method is used to calculate the total energy consumed
+
+
+var totalEnergy = dailyMeasurements.Sum(m => m.Value);
+var cheapEnergy = dailyMeasurements.Where(m => m.EnergyPrice <= avgPrice).Sum(m => m.Value);
+var expensiveEnergy = dailyMeasurements.Where(m => m.EnergyPrice > avgPrice).Sum(m => m.Value);
+
+// Calculate the percentage of cheap energy
+var cheapEnergyPercentage = (totalEnergy > 0) ? Math.Round((decimal)(cheapEnergy / totalEnergy) * 100) : 0;
+
+// Create a new DailyEnergyConsumption object
+return new DailyEnergyConsumption
+{
+Date = group.Key,
+TotalEnergy = totalEnergy,
+CheapEnergy = cheapEnergy,
+ExpensiveEnergy = expensiveEnergy,
+CheapEnergyPercentage = (double)cheapEnergyPercentage,
+AveragePrice = (double?)Math.Round((decimal)avgPrice, 5)
+};
+}).ToList(); *@
     }
 
     private async Task getMeasurements()
@@ -240,6 +242,16 @@ BarPercentage = 1,
         loading = true;
         StateHasChanged();
         await getMeasurements();
+        options.Interaction.Mode = InteractionMode.Index;
+
+        options.Plugins.Title!.Text = "Energy Consumption in kWh";
+        options.Plugins.Title.Display = true;
+        options.Plugins.Title.Font = new ChartFont { Size = 20 };
+
+        options.Responsive = true;
+
+        options.Scales.X!.Title = new ChartAxesTitle { Text = "Days", Display = true };
+        options.Scales.Y!.Title = new ChartAxesTitle { Text = "Energy", Display = true };
 
 
         if (measurements != null)
@@ -260,7 +272,7 @@ BarPercentage = 1,
 
         await getMeasurements();
         await CalculateDailyEnergyConsumption();
-        await UpdateManhattanAsync();
+        await RenderBarChartAsync(false);
 
         loading = false;
         StateHasChanged();
