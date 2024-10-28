@@ -60,7 +60,7 @@
                             Expensive Energy (kWh)</th>
                         <th
                             style="padding: 12px; border: 1px solid #ddd; text-align: center; background-color: #f4f4f4; font-weight: bold; color: #333;">
-                            Average Price (€/kWh)</th>
+                            Average Price</th>
                         <th
                             style="padding: 12px; border: 1px solid #ddd; text-align: center; background-color: #f4f4f4; font-weight: bold; color: #333;">
                             Cheap Energy (%)</th>
@@ -95,9 +95,9 @@
 @code {
     private List<Measurement>? measurements;
     private List<DailyEnergyConsumption> dailyEnergyConsumption = new();
-    private int meterId = 1078608;
+    private int meterId = 0x172425;
     private int numberOfDays = 1;
-    private string aggregationWindow = "6h";
+    private string aggregationWindow = "1m";
     private bool loading = true;
     private BarChart barChart = default!;
     private BarChartOptions options = new();
@@ -106,10 +106,10 @@
     {
         if (firstRender)
         {
-            @* await RenderBarChartAsync(true); *@
+            await RenderBarChartAsync(true);
         }
 
-        @* await base.OnAfterRenderAsync(firstRender); *@
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     private async Task RenderBarChartAsync(bool firstRender)
@@ -165,67 +165,68 @@ BarPercentage = 1,
 
     private async Task CalculateDailyEnergyConsumption()
     {
-        if (measurements == null) return;
+        // Clear the existing data to avoid duplication
+        dailyEnergyConsumption.Clear();
 
         // Group measurements by date
         var groupedMeasurements = measurements
         .GroupBy(measurement => measurement.Timestamp.Date)
         .ToList();
 
-        var firstDay = true;
-        var lastMeasurement = 0.0;
+        @* Console.WriteLine(groupedMeasurements); *@
 
         foreach (var day in groupedMeasurements)
         {
-            var dailyMeasurements = day.ToList();
+            Console.WriteLine(day.First());
+            Console.WriteLine(day.Last());
 
-            foreach (var measurement in dailyMeasurements)
+            var AveragePrice = day.Average(m => m.EnergyPrice);
+
+            var TotalEnergy = day.Last().Value - day.First().Value;
+
+            double cheapEnergy = 0;
+            double expensiveEnergy = 0;
+
+            // Iterate through each measurement in the day
+            for (int i = 1; i < day.Count(); i++)
             {
-                Console.WriteLine(measurement.Value);
+                var previousMeasurement = day.ElementAt(i - 1);
+                var currentMeasurement = day.ElementAt(i);
+
+                // Calculate energy consumed between two measurements
+                var energyUsed = currentMeasurement.Value - previousMeasurement.Value;
+                if (energyUsed > 0)
+                {
+                    @* Console.WriteLine(previousMeasurement.Value);
+Console.WriteLine(currentMeasurement.Value);
+Console.WriteLine(energyUsed); *@
+                }
+
+
+                // Classify as cheap or expensive based on whether the EnergyPrice is below or above the average
+                if (currentMeasurement.EnergyPrice <= AveragePrice)
+                {
+                    cheapEnergy += energyUsed ?? 0;
+                }
+                else
+                {
+                    expensiveEnergy += energyUsed ?? 0;
+                }
             }
 
-            @* Console.WriteLine(dailyMeasurements.Last().Value);
-Console.WriteLine(dailyMeasurements.First().Value); *@
-            if (firstDay)
-            {
-                lastMeasurement = dailyMeasurements.Last().Value ?? 0.0;
-                // go to next day
-                firstDay = false;
-                continue;
-            }
+            double cheapEnergyPercentage = (TotalEnergy > 0) ? (cheapEnergy / (double)TotalEnergy) * 100 : 0;
 
-            Console.WriteLine("last", lastMeasurement);
+
+            dailyEnergyConsumption.Add(new DailyEnergyConsumption
+                {
+                    Date = day.Key,
+                    TotalEnergy = TotalEnergy,
+                    CheapEnergy = cheapEnergy,
+                    ExpensiveEnergy = expensiveEnergy,
+                    AveragePrice = Math.Round(AveragePrice ?? 0, 3),
+                    CheapEnergyPercentage = Math.Round(cheapEnergyPercentage)
+                });
         }
-        @* dailyEnergyConsumption = groupedMeasurements.Select(group =>
-{
-// Create list of measurements per day
-var dailyMeasurements = group.ToList();
-
-// Calculate daily average price using Average method
-var avgPrice = dailyMeasurements.Average(m => m.EnergyPrice);
-
-// The where method is used to filter the measurements based on the energy price
-// The sum method is used to calculate the total energy consumed
-
-
-var totalEnergy = dailyMeasurements.Sum(m => m.Value);
-var cheapEnergy = dailyMeasurements.Where(m => m.EnergyPrice <= avgPrice).Sum(m => m.Value);
-var expensiveEnergy = dailyMeasurements.Where(m => m.EnergyPrice > avgPrice).Sum(m => m.Value);
-
-// Calculate the percentage of cheap energy
-var cheapEnergyPercentage = (totalEnergy > 0) ? Math.Round((decimal)(cheapEnergy / totalEnergy) * 100) : 0;
-
-// Create a new DailyEnergyConsumption object
-return new DailyEnergyConsumption
-{
-Date = group.Key,
-TotalEnergy = totalEnergy,
-CheapEnergy = cheapEnergy,
-ExpensiveEnergy = expensiveEnergy,
-CheapEnergyPercentage = (double)cheapEnergyPercentage,
-AveragePrice = (double?)Math.Round((decimal)avgPrice, 5)
-};
-}).ToList(); *@
     }
 
     private async Task getMeasurements()
@@ -263,12 +264,10 @@ AveragePrice = (double?)Math.Round((decimal)avgPrice, 5)
         StateHasChanged();
     }
 
-
     private async Task OnDaysRangeChanged()
     {
         loading = true;
         StateHasChanged();
-        Console.WriteLine(loading);
 
         await getMeasurements();
         await CalculateDailyEnergyConsumption();
@@ -276,13 +275,6 @@ AveragePrice = (double?)Math.Round((decimal)avgPrice, 5)
 
         loading = false;
         StateHasChanged();
-    }
-
-    private string FormatDateOnly(DateOnly? date)
-    {
-        return date.HasValue
-        ? date.Value.ToString("yyyy-MM-dd")
-        : "";
     }
 
     private class DailyEnergyConsumption
