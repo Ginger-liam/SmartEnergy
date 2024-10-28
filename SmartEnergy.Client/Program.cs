@@ -2,6 +2,7 @@ using InfluxDB.Client;
 using SmartEnergy.Client.Components;
 using SmartEnergy.Library.Measurements.Models;
 using SmartEnergy.Library.Measurements.Repository;
+using BlazorBootstrap;
 
 namespace SmartEnergy.Client;
 
@@ -10,6 +11,8 @@ public static class Program
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        builder.Services.AddBlazorBootstrap();
 
         // Add services to the container.
         builder.Services
@@ -26,6 +29,7 @@ public static class Program
             .AddTransient<IMeasurementRepository, InfluxMeasurementRepository>()
             .AddRazorComponents()
             .AddInteractiveServerComponents();
+
 
         var app = builder.Build();
 
