@@ -173,13 +173,8 @@ BarPercentage = 1,
         .GroupBy(measurement => measurement.Timestamp.Date)
         .ToList();
 
-        @* Console.WriteLine(groupedMeasurements); *@
-
         foreach (var day in groupedMeasurements)
         {
-            Console.WriteLine(day.First());
-            Console.WriteLine(day.Last());
-
             var AveragePrice = day.Average(m => m.EnergyPrice);
 
             var TotalEnergy = day.Last().Value - day.First().Value;
@@ -190,17 +185,12 @@ BarPercentage = 1,
             // Iterate through each measurement in the day
             for (int i = 1; i < day.Count(); i++)
             {
+                // only check measurement that falls on the whole hour
                 var previousMeasurement = day.ElementAt(i - 1);
                 var currentMeasurement = day.ElementAt(i);
 
                 // Calculate energy consumed between two measurements
                 var energyUsed = currentMeasurement.Value - previousMeasurement.Value;
-                if (energyUsed > 0)
-                {
-                    @* Console.WriteLine(previousMeasurement.Value);
-Console.WriteLine(currentMeasurement.Value);
-Console.WriteLine(energyUsed); *@
-                }
 
 
                 // Classify as cheap or expensive based on whether the EnergyPrice is below or above the average
@@ -215,7 +205,6 @@ Console.WriteLine(energyUsed); *@
             }
 
             double cheapEnergyPercentage = (TotalEnergy > 0) ? (cheapEnergy / (double)TotalEnergy) * 100 : 0;
-
 
             dailyEnergyConsumption.Add(new DailyEnergyConsumption
                 {
@@ -253,7 +242,6 @@ Console.WriteLine(energyUsed); *@
 
         options.Scales.X!.Title = new ChartAxesTitle { Text = "Days", Display = true };
         options.Scales.Y!.Title = new ChartAxesTitle { Text = "Energy", Display = true };
-
 
         if (measurements != null)
         {
