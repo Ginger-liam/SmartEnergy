@@ -150,7 +150,6 @@ BarPercentage = 1,
 },
 }
             };
-
         if (firstRender)
         {
             await barChart.InitializeAsync(data, options);
@@ -173,12 +172,16 @@ BarPercentage = 1,
         .GroupBy(measurement => measurement.Timestamp.Date)
         .ToList();
 
+        // Iterate through each day
         foreach (var day in groupedMeasurements)
         {
+            // Calculate the average price for the day
             var AveragePrice = day.Average(m => m.EnergyPrice);
 
+            // Calculate the total energy consumed for the day
             var TotalEnergy = day.Last().Value - day.First().Value;
 
+            // Initialize cheap and expensive energy
             double cheapEnergy = 0;
             double expensiveEnergy = 0;
 
@@ -189,9 +192,9 @@ BarPercentage = 1,
                 var previousMeasurement = day.ElementAt(i - 1);
                 var currentMeasurement = day.ElementAt(i);
 
+
                 // Calculate energy consumed between two measurements
                 var energyUsed = currentMeasurement.Value - previousMeasurement.Value;
-
 
                 // Classify as cheap or expensive based on whether the EnergyPrice is below or above the average
                 if (currentMeasurement.EnergyPrice <= AveragePrice)
@@ -204,8 +207,10 @@ BarPercentage = 1,
                 }
             }
 
+            // Calculate the percentage of cheap energy
             double cheapEnergyPercentage = (TotalEnergy > 0) ? (cheapEnergy / (double)TotalEnergy) * 100 : 0;
 
+            // Add the daily energy consumption to the list
             dailyEnergyConsumption.Add(new DailyEnergyConsumption
                 {
                     Date = day.Key,
